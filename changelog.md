@@ -5,8 +5,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- **Plugin: Pitch Analyzer (Colheita)**: Visualizes the pitch trajectory in Hz over time, with reference lines for musical notes (C, D, E...).
-- **Plugin: Duplicate Detector (Podador)**: Finds exact, case-insensitive, or functional duplicates (same audio slice). Allows jumping to or deleting redundant entries.
+- **Gravador de Áudio (Regravar - F9)**: Permite capturar e substituir o áudio original de um alias diretamente pelo app. Inclui preview de waveform e audição prévia.
+- **Interações Travadas (Lock)**: Zoom agora exige **CTRL + Scroll** e Panning (navegar) exige **SHIFT + Scroll**, evitando zoom acidental.
+- **Barra de Carregamento**: Indicador visual no topo da Waveform durante animações de zoom suave.
 - **Multi-Selection support**: Select multiple rows using **Ctrl + Click** or **Shift + Click / Shift + Arrow Keys**.
 - **Plugin: Consistency Checker (Inspetor)**: Analyzes the whole voicebank for errors like:
   - Missing audio files.
@@ -24,6 +25,9 @@ All notable changes to this project will be documented in this file.
 - **Spectrogram/Waveform Alignment**: Corrected the fft_size / 2 offset and floating-point precision issues to ensure visually perfect alignment.
 - **Spectrogram Quality**: Upgraded from bilinear to **Bicubic Interpolation (Catmull-Rom)** to prevent pixelation during high zoom levels.
 - **Waveform Fidelity**: Implemented continuous spline rendering for zoomed-in waves and accurate peak envelopes for zoomed-out views.
+- **Fix: Modal Close Buttons**: Resolvido erro de lógica onde o botão "Fechar" interno de janelas não funcionava corretamente.
+- **Fix: Minimap Rendering**: Corrigido erro de coordenadas que fazia o minimapa desaparecer ou ser cortado.
+- **Sync: Cores do Minimapa**: O minimapa agora herda automaticamente as cores definidas para o waveform.
 
 ### Refactored
 - Separated plugin logic into src/plugins.rs.

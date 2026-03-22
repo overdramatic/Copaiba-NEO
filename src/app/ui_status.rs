@@ -1,0 +1,48 @@
+use egui::RichText;
+use super::state::CopaibaApp;
+
+impl CopaibaApp {
+    pub fn show_status_bar(&mut self, ctx: &egui::Context, now: f64) {
+        egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                let tab = self.cur();
+                let dirty_marker = if tab.dirty { " ●" } else { "" };
+                if let Some(ref p) = tab.oto_path {
+                    ui.label(RichText::new(format!("{}{dirty_marker}", p.display())).color(egui::Color32::from_rgb(140, 200, 140)).small());
+                } else {
+                    ui.label(RichText::new("Novo Arquivo").color(egui::Color32::LIGHT_GRAY).small());
+                }
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let total = tab.entries.len();
+                    let sel = tab.selected;
+
+                    ui.label(RichText::new(format!("Linha: {}/{}", sel + 1, total)).small().color(egui::Color32::GRAY));
+                    ui.add_space(16.0);
+
+                    let done_count = tab.entries.iter().filter(|e| e.done).count();
+                    let pct_done = if total > 0 { done_count as f32 / total as f32 } else { 0.0 };
+                    ui.horizontal(|ui| {
+                        ui.add(egui::ProgressBar::new(pct_done).desired_width(100.0));
+                        ui.label(RichText::new(format!("{:.0}%", pct_done * 100.0)).small().color(egui::Color32::GRAY));
+                        ui.label(RichText::new(format!("({}/{})", done_count, total)).small().color(egui::Color32::GRAY));
+                    });
+
+                    ui.add_space(16.0);
+                    let elapsed = now - self.session_start_time;
+                    let mins = (elapsed / 60.0).floor();
+                    let secs = (elapsed % 60.0).floor();
+                    ui.label(RichText::new(format!("Tempo de sessão: {:02}:{:02}", mins as u32, secs as u32)).small().color(egui::Color32::GRAY));
+                    ui.add_space(16.0);
+                    ui.label(RichText::new(if tab.dirty { "Não salvo" } else { "Salvo!" }).small().color(egui::Color32::GRAY));
+                    ctx.request_repaint_after(std::time::Duration::from_millis(500));
+
+                    ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+                        ui.add_space(16.0);
+                        ui.label(RichText::new(&self.status).small());
+                    });
+                });
+            });
+        });
+    }
+}
