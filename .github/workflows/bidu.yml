@@ -1,0 +1,120 @@
+name: Notificações do Bidu (Onipresente)
+
+# Escuta praticamente todas as modificações importantes
+on:
+  push:
+  pull_request:
+    types: [opened, closed, reopened, synchronize]
+  issues:
+    types: [opened, closed, reopened, edited, deleted]
+  issue_comment:
+    types: [created, edited, deleted]
+  release:
+    types: [published, edited]
+  create: # Criação de branch ou tag
+  delete: # Exclusão de branch ou tag
+  gollum: # Edições na Wiki
+
+jobs:
+  notificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Identificar evento e avisar o Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          EVENT_NAME="${{ github.event_name }}"
+          REPO="${{ github.repository }}"
+          ACTOR="${{ github.actor }}"
+          
+          # Formato Padrão (Coringa) para eventos não listados abaixo
+          TITLE="🔔 Nova modificação em $REPO"
+          DESC="Ação realizada por **$ACTOR**.\nEvento detectado: \`$EVENT_NAME\`."
+          COLOR=8421504 # Cinza
+          
+          # 1. Commits (Push)
+          if [ "$EVENT_NAME" == "push" ]; then
+            URL="${{ github.event.compare }}"
+            TITLE="📦 Novo push em $REPO"
+            COLOR=3447003 # Azul
+            
+            FILES=$(jq -r '.commits[]? | (.modified[]?, .added[]?, .removed[]?)' "$GITHUB_EVENT_PATH" | sort -u | grep -v '^$' || true)
+            if [ -z "$FILES" ]; then
+              FILE_TEXT="*Nenhum arquivo detalhado.*"
+            else
+              TOTAL=$(echo "$FILES" | wc -l)
+              FILE_TEXT=$(echo "$FILES" | head -n 5 | awk '{print "- `"$0"`"}')
+              if [ "$TOTAL" -gt 5 ]; then
+                REMAINING=$((TOTAL - 5))
+                FILE_TEXT=$(printf "%s\n*...e mais %d arquivo(s)*" "$FILE_TEXT" "$REMAINING")
+              fi
+            fi
+            DESC="Autoria de **$ACTOR**.\n\n**Arquivos alterados:**\n$FILE_TEXT\n\n[Comparar alterações]($URL)"
+            
+          # 2. Pull Requests
+          elif [ "$EVENT_NAME" == "pull_request" ]; then
+            ACTION=$(jq -r '.action' "$GITHUB_EVENT_PATH")
+            PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
+            URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
+            TITLE="🔀 Pull Request $ACTION em $REPO"
+            DESC="Autoria de **$ACTOR**.\n**Título:** $PR_TITLE\n\n[Ver Pull Request]($URL)"
+            COLOR=5763719 # Verde
+            
+          # 3. Issues
+          elif [ "$EVENT_NAME" == "issues" ]; then
+            ACTION=$(jq -r '.action' "$GITHUB_EVENT_PATH")
+            ISSUE_TITLE=$(jq -r '.issue.title' "$GITHUB_EVENT_PATH")
+            URL=$(jq -r '.issue.html_url' "$GITHUB_EVENT_PATH")
+            TITLE="🚨 Issue $ACTION em $REPO"
+            DESC="Autoria de **$ACTOR**.\n**Título:** $ISSUE_TITLE\n\n[Ver Issue]($URL)"
+            COLOR=16753920 # Laranja
+            
+          # 4. Comentários
+          elif [ "$EVENT_NAME" == "issue_comment" ]; then
+            ACTION=$(jq -r '.action' "$GITHUB_EVENT_PATH")
+            URL=$(jq -r '.comment.html_url' "$GITHUB_EVENT_PATH")
+            TITLE="💬 Comentário $ACTION em $REPO"
+            DESC="**$ACTOR** modificou um comentário em uma Issue ou Pull Request.\n\n[Ir para o comentário]($URL)"
+            COLOR=16776960 # Amarelo
+            
+          # 5. Releases
+          elif [ "$EVENT_NAME" == "release" ]; then
+            ACTION=$(jq -r '.action' "$GITHUB_EVENT_PATH")
+            RELEASE_NAME=$(jq -r '.release.name' "$GITHUB_EVENT_PATH")
+            URL=$(jq -r '.release.html_url' "$GITHUB_EVENT_PATH")
+            TITLE="🚀 Release $ACTION em $REPO"
+            DESC="**$ACTOR** mexeu na versão: **$RELEASE_NAME**.\n\n[Ver Release]($URL)"
+            COLOR=15105570 # Vermelho Vivo
+            
+          # 6. Criação de Branches ou Tags
+          elif [ "$EVENT_NAME" == "create" ]; then
+            REF_TYPE=$(jq -r '.ref_type' "$GITHUB_EVENT_PATH")
+            REF=$(jq -r '.ref' "$GITHUB_EVENT_PATH")
+            TITLE="🌱 Nova $REF_TYPE criada"
+            DESC="**$ACTOR** criou a $REF_TYPE \`$REF\` no repositório."
+            COLOR=5763719 # Verde
+            
+          # 7. Exclusão de Branches ou Tags
+          elif [ "$EVENT_NAME" == "delete" ]; then
+            REF_TYPE=$(jq -r '.ref_type' "$GITHUB_EVENT_PATH")
+            REF=$(jq -r '.ref' "$GITHUB_EVENT_PATH")
+            TITLE="🗑️ $REF_TYPE deletada"
+            DESC="**$ACTOR** deletou a $REF_TYPE \`$REF\` do repositório."
+            COLOR=15548997 # Vermelho Escuro
+          fi
+          
+          # Monta e envia o JSON
+          JSON_PAYLOAD=$(jq -n \
+            --arg title "$TITLE" \
+            --arg desc "$DESC" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [{
+                title: $title,
+                description: $desc,
+                color: $color
+              }]
+            }' \
+          )
+          
+          curl -H "Content-Type: application/json" -d "$JSON_PAYLOAD" "$DISCORD_WEBHOOK"
