@@ -53,16 +53,16 @@ impl CopaibaApp {
                         }
                     });
                     ui.separator();
-                    if ui.button("📝 Renomear alias...\tCtrl+R").clicked() { self.is_renaming = true; ui.close_menu(); }
+                    if ui.button("📝 Renomear alias...\tCtrl+R").clicked() { self.ui.is_renaming = true; ui.close_menu(); }
                     if ui.button("🗑️ Deletar alias\tCtrl+D").clicked() { ui.close_menu(); }
                 });
 
                 ui.menu_button("Visualizar", |ui| {
-                    ui.checkbox(&mut self.show_spectrogram, "Espectrograma");
-                    ui.checkbox(&mut self.show_minimap, "Minimapa");
+                    ui.checkbox(&mut self.visual.show_spectrogram, "Espectrograma");
+                    ui.checkbox(&mut self.visual.show_minimap, "Minimapa");
                     ui.separator();
-                    ui.checkbox(&mut self.play_on_select, "Tocar ao selecionar");
-                    ui.checkbox(&mut self.auto_scroll_to_selected, "Auto-scroll para selecionado");
+                    ui.checkbox(&mut self.config.play_on_select, "Tocar ao selecionar");
+                    ui.checkbox(&mut self.ui.auto_scroll_to_selected, "Auto-scroll para selecionado");
                     ui.separator();
                     if ui.button("Redefinir visualizações").clicked() {
                         let tab = self.cur_mut();
@@ -78,38 +78,38 @@ impl CopaibaApp {
                     ui.separator();
                     if ui.button("🧪 Teste de Síntese\tCtrl+Shift+Space").clicked() { self.resample_current(); ui.close_menu(); }
                     ui.separator();
-                    ui.checkbox(&mut self.play_on_select, "Tocar setor ao clicar");
+                    ui.checkbox(&mut self.config.play_on_select, "Tocar setor ao clicar");
                 });
 
                 ui.menu_button("Configurações", |ui| {
-                    if ui.button("⚙ Configurações Gerais...\tCtrl+,").clicked() { self.show_settings = true; ui.close_menu(); }
+                    if ui.button("⚙ Configurações Gerais...\tCtrl+,").clicked() { self.ui.show_settings = true; ui.close_menu(); }
                     ui.separator();
                     ui.horizontal(|ui| {
-                        ui.checkbox(&mut self.auto_save_enabled, "Auto-salvar");
-                        if self.auto_save_enabled {
-                            ui.add(egui::DragValue::new(&mut self.auto_save_interval_mins).suffix(" min").range(1..=60));
+                        ui.checkbox(&mut self.config.auto_save_enabled, "Auto-salvar");
+                        if self.config.auto_save_enabled {
+                            ui.add(egui::DragValue::new(&mut self.config.auto_save_interval_mins).suffix(" min").range(1..=60));
                         }
                     });
                 });
 
                 ui.menu_button("Plugins", |ui| {
-                    if ui.button("🔍 Verificador de Consistência").clicked() { self.show_consistency_checker = true; ui.close_menu(); }
-                    if ui.button("✂ Detector de Duplicatas").clicked() { self.show_duplicate_detector = true; ui.close_menu(); }
-                    if ui.button("🎵 Análise de Pitch").clicked() { self.show_pitch_analyzer = true; ui.close_menu(); }
+                    if ui.button("🔍 Verificador de Consistência").clicked() { self.ui.show_consistency_checker = true; ui.close_menu(); }
+                    if ui.button("✂ Detector de Duplicatas").clicked() { self.ui.show_duplicate_detector = true; ui.close_menu(); }
+                    if ui.button("🎵 Análise de Pitch").clicked() { self.ui.show_pitch_analyzer = true; ui.close_menu(); }
                     ui.separator();
-                    if ui.button("↕ Ordenar Aliases...").clicked() { self.show_alias_sorter = true; ui.close_menu(); }
+                    if ui.button("↕ Ordenar Aliases...").clicked() { self.ui.show_alias_sorter = true; ui.close_menu(); }
                     ui.separator();
-                    if ui.button("📝 Renomear em Massa (Enxertia)").clicked() { self.show_batch_rename = true; ui.close_menu(); }
-                    if ui.button("📊 Edição em Lote").clicked() { self.show_batch_edit = true; ui.close_menu(); }
+                    if ui.button("📝 Renomear em Massa (Enxertia)").clicked() { self.ui.show_batch_rename = true; ui.close_menu(); }
+                    if ui.button("📊 Edição em Lote").clicked() { self.ui.show_batch_edit = true; ui.close_menu(); }
                 });
 
                 ui.menu_button("Ajuda", |ui| {
-                    if ui.button("⌨ Atalhos de Teclado (F1)\tF1").clicked() { self.show_help = true; ui.close_menu(); }
+                    if ui.button("⌨ Atalhos de Teclado (F1)\tF1").clicked() { self.ui.show_help = true; ui.close_menu(); }
                 });
 
                 ui.separator();
                 if ui.button(RichText::new("Regravar áudio (F9)").color(egui::Color32::from_rgb(100, 200, 100)).strong()).clicked() {
-                    self.show_recorder = true;
+                    self.ui.show_recorder = true;
                 }
 
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {

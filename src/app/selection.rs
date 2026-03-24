@@ -112,9 +112,9 @@ impl CopaibaApp {
                     }
                 }
             }
-            let fname = tab.filtered.get(tab.selected).and_then(|&i| tab.entries.get(i)).map(|e| e.filename.clone());
+            let fname_opt: Option<String> = tab.filtered.get(tab.selected).and_then(|&i| tab.entries.get(i)).map(|e| e.filename.clone());
             tab.selected = fi;
-            (fname, tab.filtered.get(fi).copied())
+            (fname_opt, tab.filtered.get(fi).copied())
         };
 
         self.ensure_wav_loaded();
@@ -136,7 +136,7 @@ impl CopaibaApp {
 
             let wav_duration = self.wav_cache.get(&fname).map(|w| w.duration_ms);
             if let Some(dur) = wav_duration {
-                let persistent = self.persistent_zoom;
+                let persistent = self.visual.persistent_zoom;
                 let tab = self.cur_mut();
                 if new_wav && !persistent {
                     tab.wave_view.reset_to(dur);

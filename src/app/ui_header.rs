@@ -1,4 +1,5 @@
 use egui::{Color32, RichText, Vec2, ComboBox};
+use std::path::PathBuf;
 use super::state::CopaibaApp;
 
 impl CopaibaApp {
@@ -41,13 +42,17 @@ impl CopaibaApp {
                 ui.add_space(8.0);
 
                 ui.vertical(|ui| {
-                    let name = if tab.character_name.is_empty() { 
-                        tab.oto_dir.as_ref().and_then(|p| p.file_name()).map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "Voicebank".to_string())
+                    let name = if tab.character_name.is_empty() {
+                        let vb_name = tab.oto_dir.as_ref()
+                            .and_then(|p: &PathBuf| p.file_name())
+                            .map(|s: &std::ffi::OsStr| s.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "Voicebank".to_string());
+                        vb_name
                     } else { 
                         tab.character_name.clone() 
                     };
                     ui.label(RichText::new(name).strong().size(16.0));
-                    ui.label(RichText::new(tab.oto_dir.as_ref().map(|p| p.to_string_lossy().to_string()).unwrap_or_default()).color(ui.visuals().weak_text_color()).size(9.0));
+                    ui.label(RichText::new(tab.oto_dir.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()).unwrap_or_default()).color(ui.visuals().weak_text_color()).size(9.0));
                 });
 
                 ui.add_space(16.0);
@@ -83,12 +88,12 @@ impl CopaibaApp {
                     ];
                     
                     ComboBox::from_id_salt("pitch_select")
-                        .selected_text(RichText::new(&self.test_pitch).color(Color32::from_rgb(137, 180, 250)).strong())
+                        .selected_text(RichText::new(&self.config.test_pitch).color(Color32::from_rgb(137, 180, 250)).strong())
                         .width(60.0)
                         .show_ui(ui, |ui| {
                             egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
                                 for p in pitches {
-                                    ui.selectable_value(&mut self.test_pitch, p.to_string(), p);
+                                    ui.selectable_value(&mut self.config.test_pitch, p.to_string(), p);
                                 }
                             });
                         });
@@ -99,10 +104,10 @@ impl CopaibaApp {
                     // Resampler Selection
                     if ui.button(RichText::new("⚙ Resampler").strong()).clicked() {
                         if let Some(path) = rfd::FileDialog::new().pick_file() {
-                            self.resampler_path = Some(path);
+                            self.config.resampler_path = Some(path);
                         }
                     }
-                    if let Some(res) = &self.resampler_path {
+                    if let Some(res) = &self.config.resampler_path {
                         ui.label(RichText::new(res.file_name().unwrap_or_default().to_string_lossy()).size(10.0).color(ui.visuals().weak_text_color()));
                     } else {
                         ui.label(RichText::new("Nenhum").size(10.0).color(Color32::from_rgb(243, 139, 168)));

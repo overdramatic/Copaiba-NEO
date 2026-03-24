@@ -11,9 +11,56 @@ use crate::spectrogram::{SpectrogramData, SpectrogramSettings};
 use crate::waveform::{WaveformSettings, WaveformView};
 use crate::plugins;
 
-// ── Simple types ─────────────────────────────────────────────────────────────
+#[derive(Clone, PartialEq)]
+pub struct TabState {
+    pub name: String,
+    pub entries: Vec<OtoEntry>,
+    pub original_entries: Vec<OtoEntry>,
+    pub filtered: Vec<usize>,
+    pub selected: usize,
+    pub filter: String,
+    pub oto_path: Option<PathBuf>,
+    pub oto_dir: Option<PathBuf>,
+    pub character_name: String,
+    pub character_image_path: Option<PathBuf>,
+    pub character_texture: Option<egui::TextureHandle>,
+    pub readme_text: String,
+    pub license_text: String,
+    pub dirty: bool,
+    pub wave_view: WaveformView,
+    pub undo_stack: Vec<Vec<OtoEntry>>,
+    pub redo_stack: Vec<Vec<OtoEntry>>,
+    pub multi_selection: HashSet<usize>,
+    pub focus_col: usize,
+}
 
-#[derive(Clone, Debug)]
+impl Default for TabState {
+    fn default() -> Self {
+        Self {
+            name: "Novo Set".to_string(),
+            entries: Vec::new(),
+            original_entries: Vec::new(),
+            filtered: Vec::new(),
+            selected: 0,
+            filter: String::new(),
+            oto_path: None,
+            oto_dir: None,
+            character_name: String::new(),
+            character_image_path: None,
+            character_texture: None,
+            readme_text: String::new(),
+            license_text: String::new(),
+            dirty: false,
+            wave_view: WaveformView::default(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
+            multi_selection: HashSet::new(),
+            focus_col: 0,
+        }
+    }
+}
+
+#[derive(Clone, Default)]
 pub struct Preset {
     pub name: String,
     pub offset: f64,
@@ -23,15 +70,23 @@ pub struct Preset {
     pub overlap: f64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ShortcutProfile {
+    #[default]
     Copaiba,
+    Utau,
+    VLabeler,
     SetParam,
     Custom,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CustomShortcuts {
+    pub play: String,
+    pub stop: String,
+    pub save: String,
+    pub undo: String,
+    pub redo: String,
     pub off: egui::Key,
     pub ove: egui::Key,
     pub pre: egui::Key,
@@ -42,6 +97,11 @@ pub struct CustomShortcuts {
 impl Default for CustomShortcuts {
     fn default() -> Self {
         Self {
+            play: "P".to_string(),
+            stop: "S".to_string(),
+            save: "S".to_string(),
+            undo: "Z".to_string(),
+            redo: "Y".to_string(),
             off: egui::Key::Q,
             ove: egui::Key::W,
             pre: egui::Key::E,
@@ -51,52 +111,147 @@ impl Default for CustomShortcuts {
     }
 }
 
-// ── TabState ─────────────────────────────────────────────────────────────────
+pub struct AudioState {
+    pub _stream: Option<OutputStream>,
+    pub _stream_handle: Option<OutputStreamHandle>,
+    pub sink: Option<Arc<Sink>>,
+    pub playback_start: Option<std::time::Instant>,
+    pub playback_offset_ms: f64,
+    pub playback_limit_ms: Option<f64>,
 
-pub struct TabState {
-    pub name: String,
-    pub entries: Vec<OtoEntry>,
-    pub selected: usize,
-    pub multi_selection: HashSet<usize>,
-    pub oto_path: Option<PathBuf>,
-    pub oto_dir: Option<PathBuf>,
-    pub dirty: bool,
-    pub undo_stack: Vec<Vec<OtoEntry>>,
-    pub redo_stack: Vec<Vec<OtoEntry>>,
-    pub wave_view: WaveformView,
-    pub filter: String,
-    pub filtered: Vec<usize>,
-    pub original_entries: Vec<OtoEntry>,
-    pub focus_col: usize,
-    pub character_name: String,
-    pub character_image_path: Option<PathBuf>,
-    pub character_texture: Option<egui::TextureHandle>,
-    pub readme_text: String,
-    pub license_text: String,
+    // Recorder
+    pub is_recording: bool,
+    pub recorder_samples: Arc<Mutex<Vec<f32>>>,
+    pub recorder_stop_signal: Arc<AtomicBool>,
+    pub recorder_stream: Option<cpal::Stream>,
+    pub recorded_wav: Option<WavData>,
+    pub recorder_sample_rate: u32,
 }
 
-impl Default for TabState {
+impl Default for AudioState {
     fn default() -> Self {
         Self {
-            name: "Novo Set".to_string(),
-            entries: Vec::new(),
-            selected: 0,
-            multi_selection: HashSet::new(),
-            oto_path: None,
-            oto_dir: None,
-            dirty: false,
-            undo_stack: Vec::new(),
-            redo_stack: Vec::new(),
-            wave_view: WaveformView::default(),
-            filter: String::new(),
-            filtered: Vec::new(),
-            original_entries: Vec::new(),
-            focus_col: 2,
-            character_name: String::new(),
-            character_image_path: None,
-            character_texture: None,
-            readme_text: String::new(),
-            license_text: String::new(),
+            _stream: None,
+            _stream_handle: None,
+            sink: None,
+            playback_start: None,
+            playback_offset_ms: 0.0,
+            playback_limit_ms: None,
+            is_recording: false,
+            recorder_samples: Arc::new(Mutex::new(Vec::new())),
+            recorder_stop_signal: Arc::new(AtomicBool::new(false)),
+            recorder_stream: None,
+            recorded_wav: None,
+            recorder_sample_rate: 44100,
+        }
+    }
+}
+
+pub struct VisualSettings {
+    pub spec: SpectrogramSettings,
+    pub wave: WaveformSettings,
+    pub show_spectrogram: bool,
+    pub show_minimap: bool,
+    pub persistent_zoom: bool,
+}
+
+impl Default for VisualSettings {
+    fn default() -> Self {
+        Self {
+            spec: SpectrogramSettings::default(),
+            wave: WaveformSettings::default(),
+            show_spectrogram: true,
+            show_minimap: true,
+            persistent_zoom: false,
+        }
+    }
+}
+
+pub struct UiState {
+    pub status: String,
+    pub show_exit_dialog: bool,
+    pub show_preset_editor: bool,
+    pub show_settings: bool,
+    pub show_help: bool,
+    pub renaming_tab: Option<usize>,
+    pub is_renaming: bool,
+    pub search_string: String,
+    pub auto_scroll_to_selected: bool,
+    
+    // Tools/Plugins windows
+    pub show_consistency_checker: bool,
+    pub show_batch_rename: bool,
+    pub show_batch_edit: bool,
+    pub show_alias_sorter: bool,
+    pub show_duplicate_detector: bool,
+    pub show_pitch_analyzer: bool,
+    
+    // Results
+    pub consistency_issues: Vec<plugins::ValidationIssue>,
+    pub duplicate_results: Vec<plugins::Duplicate>,
+    
+    // Recorder
+    pub show_recorder: bool,
+}
+
+impl Default for UiState {
+    fn default() -> Self {
+        Self {
+            status: String::from("Abrir um arquivo oto.ini para começar."),
+            show_exit_dialog: false,
+            show_preset_editor: false,
+            show_settings: false,
+            show_help: false,
+            renaming_tab: None,
+            is_renaming: false,
+            search_string: String::new(),
+            auto_scroll_to_selected: true,
+            show_consistency_checker: false,
+            show_batch_rename: false,
+            show_batch_edit: false,
+            show_alias_sorter: false,
+            show_duplicate_detector: false,
+            show_pitch_analyzer: false,
+            consistency_issues: Vec::new(),
+            duplicate_results: Vec::new(),
+            show_recorder: false,
+        }
+    }
+}
+
+pub struct AppConfig {
+    pub shortcut_profile: ShortcutProfile,
+    pub custom_shorts: CustomShortcuts,
+    pub play_on_select: bool,
+    pub auto_save_enabled: bool,
+    pub auto_save_interval_mins: u32,
+    pub test_duration_ms: f64,
+    pub test_pitch: String,
+    pub resampler_path: Option<PathBuf>,
+}
+
+impl Default for AppConfig {
+    fn default() -> Self {
+        Self {
+            shortcut_profile: ShortcutProfile::Copaiba,
+            custom_shorts: CustomShortcuts {
+                play: "P".to_string(),
+                stop: "S".to_string(),
+                save: "S".to_string(),
+                undo: "Z".to_string(),
+                redo: "Y".to_string(),
+                off: egui::Key::Q,
+                ove: egui::Key::W,
+                pre: egui::Key::E,
+                con: egui::Key::R,
+                cut: egui::Key::T,
+            },
+            play_on_select: false,
+            auto_save_enabled: false,
+            auto_save_interval_mins: 5,
+            test_duration_ms: 500.0,
+            test_pitch: "C4".to_string(),
+            resampler_path: None,
         }
     }
 }
@@ -110,47 +265,15 @@ pub struct CopaibaApp {
     pub wav_cache: HashMap<String, WavData>,
     pub spec_data_cache: HashMap<String, SpectrogramData>,
     pub encoding: OtoEncoding,
-    pub status: String,
+    
+    pub audio: AudioState,
+    pub visual: VisualSettings,
+    pub ui: UiState,
+    pub config: AppConfig,
 
-    pub _stream: Option<OutputStream>,
-    pub _stream_handle: Option<OutputStreamHandle>,
-    pub sink: Option<Arc<Sink>>,
-    pub playback_start: Option<std::time::Instant>,
-    pub playback_offset_ms: f64,
-    pub playback_limit_ms: Option<f64>,
-    pub resampler_path: Option<PathBuf>,
-    pub test_duration_ms: f64,
-    pub test_pitch: String,
-    pub persistent_zoom: bool,
-
-    // Window visibility
-    pub show_exit_dialog: bool,
-    pub show_preset_editor: bool,
-    pub show_settings: bool,
-    pub show_help: bool,
-    pub play_on_select: bool,
-    pub renaming_tab: Option<usize>,
-
-    pub spec_settings: SpectrogramSettings,
-    pub wave_settings: WaveformSettings,
-
-    pub show_consistency_checker: bool,
-    pub consistency_issues: Vec<plugins::ValidationIssue>,
-
-    pub show_batch_rename: bool,
-    pub show_batch_edit: bool,
-    pub show_spectrogram: bool,
-    pub show_alias_sorter: bool,
     pub sort_settings: plugins::SortSettings,
-
     pub shift_pivot: Option<usize>,
 
-    pub show_duplicate_detector: bool,
-    pub duplicate_results: Vec<plugins::Duplicate>,
-
-    pub show_pitch_analyzer: bool,
-    pub shortcut_profile: ShortcutProfile,
-    pub custom_shorts: CustomShortcuts,
     pub pitch_times: Vec<f64>,
     pub pitch_values: Vec<f64>,
     pub pitch_window_ms: f64,
@@ -169,24 +292,8 @@ pub struct CopaibaApp {
 
     // Logic
     pub session_start_time: f64,
-    pub auto_save_enabled: bool,
-    pub auto_save_interval_mins: u32,
     pub last_auto_save_time: f64,
-
-    pub search_string: String,
     pub project_path: Option<PathBuf>,
-    pub is_renaming: bool,
-    pub show_minimap: bool,
-    pub auto_scroll_to_selected: bool,
-
-    // Recorder
-    pub show_recorder: bool,
-    pub is_recording: bool,
-    pub recorder_samples: Arc<Mutex<Vec<f32>>>,
-    pub recorder_stop_signal: Arc<AtomicBool>,
-    pub recorder_stream: Option<cpal::Stream>,
-    pub recorded_wav: Option<WavData>,
-    pub recorder_sample_rate: u32,
 }
 
 impl Default for CopaibaApp {
@@ -198,43 +305,14 @@ impl Default for CopaibaApp {
             wav_cache: HashMap::new(),
             spec_data_cache: HashMap::new(),
             encoding: OtoEncoding::ShiftJis,
-            status: String::from("Abrir um arquivo oto.ini para começar."),
 
-            _stream: None,
-            _stream_handle: None,
-            sink: None,
-            playback_start: None,
-            playback_offset_ms: 0.0,
-            playback_limit_ms: None,
-            resampler_path: None,
-            test_duration_ms: 500.0,
-            test_pitch: "C4".to_string(),
-            persistent_zoom: false,
+            audio: AudioState::default(),
+            visual: VisualSettings::default(),
+            ui: UiState::default(),
+            config: AppConfig::default(),
 
-            show_exit_dialog: false,
-            show_preset_editor: false,
-            show_settings: false,
-            show_help: false,
-            play_on_select: false,
-            renaming_tab: None,
-
-            spec_settings: SpectrogramSettings::default(),
-            wave_settings: WaveformSettings::default(),
-
-            show_consistency_checker: false,
-            consistency_issues: Vec::new(),
-            show_batch_rename: false,
-            show_batch_edit: false,
-            show_spectrogram: true,
-            show_alias_sorter: false,
             sort_settings: plugins::SortSettings::default(),
-
             shift_pivot: None,
-            show_duplicate_detector: false,
-            duplicate_results: Vec::new(),
-            show_pitch_analyzer: false,
-            shortcut_profile: ShortcutProfile::Copaiba,
-            custom_shorts: CustomShortcuts::default(),
             pitch_times: Vec::new(),
             pitch_values: Vec::new(),
             pitch_window_ms: 10.0,
@@ -255,23 +333,9 @@ impl Default for CopaibaApp {
             batch_edit_enabled: [false; 5],
             batch_edit_values: [0.0; 5],
 
-            search_string: String::new(),
             project_path: None,
             session_start_time: 0.0,
-            auto_save_enabled: false,
-            auto_save_interval_mins: 5,
             last_auto_save_time: 0.0,
-            is_renaming: false,
-            show_minimap: true,
-            auto_scroll_to_selected: true,
-
-            show_recorder: false,
-            is_recording: false,
-            recorder_samples: Arc::new(Mutex::new(Vec::new())),
-            recorder_stop_signal: Arc::new(AtomicBool::new(false)),
-            recorder_stream: None,
-            recorded_wav: None,
-            recorder_sample_rate: 44100,
         }
     }
 }

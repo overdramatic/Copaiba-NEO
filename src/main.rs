@@ -70,7 +70,7 @@ impl eframe::App for CopaibaApp {
         if ctx.input(|i| i.viewport().close_requested()) {
             if self.cur().dirty {
                 ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
-                self.show_exit_dialog = true;
+                self.ui.show_exit_dialog = true;
             }
         }
 
@@ -92,7 +92,7 @@ impl eframe::App for CopaibaApp {
         self.show_modals(ctx);
 
         // Repaint rate
-        if self.playback_start.is_some() {
+        if self.audio.playback_start.is_some() {
             ctx.request_repaint_after(std::time::Duration::from_millis(32));
         } else {
             ctx.request_repaint_after(std::time::Duration::from_millis(500));

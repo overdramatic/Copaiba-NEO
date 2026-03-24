@@ -21,7 +21,7 @@ impl CopaibaApp {
     }
 
     fn modal_exit_dialog(&mut self, ctx: &egui::Context) {
-        if !self.show_exit_dialog { return; }
+        if !self.ui.show_exit_dialog { return; }
         egui::Window::new("Modificações Pendentes")
             .collapsible(false)
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
@@ -58,13 +58,13 @@ impl CopaibaApp {
                         self.cur_mut().dirty = false;
                         ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                     }
-                    if ui.button("Cancelar").clicked() { self.show_exit_dialog = false; }
+                    if ui.button("Cancelar").clicked() { self.ui.show_exit_dialog = false; }
                 });
             });
     }
 
     fn modal_preset_editor(&mut self, ctx: &egui::Context) {
-        if !self.show_preset_editor { return; }
+        if !self.ui.show_preset_editor { return; }
         let mut close = false;
         egui::Window::new("Editar Presets")
             .collapsible(false)
@@ -87,11 +87,11 @@ impl CopaibaApp {
                 ui.add_space(8.0);
                 if ui.button("Fechar").clicked() { close = true; }
             });
-        if close { self.show_preset_editor = false; }
+        if close { self.ui.show_preset_editor = false; }
     }
 
     fn modal_settings(&mut self, ctx: &egui::Context) {
-        if !self.show_settings { return; }
+        if !self.ui.show_settings { return; }
         let mut open = true;
         egui::Window::new("⚙ Configurações")
             .open(&mut open)
@@ -99,19 +99,19 @@ impl CopaibaApp {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     ui.heading("🎬 Visualização do Waveform");
-                    ui.checkbox(&mut self.show_minimap, "Mostrar Minimapa (Visão Geral)");
-                    ui.checkbox(&mut self.persistent_zoom, "Manter zoom ao trocar alias");
+                    ui.checkbox(&mut self.visual.show_minimap, "Mostrar Minimapa (Visão Geral)");
+                    ui.checkbox(&mut self.visual.persistent_zoom, "Manter zoom ao trocar alias");
                     ui.horizontal(|ui| {
                         ui.label("Cor do Waveform:");
-                        if ui.color_edit_button_srgba(&mut self.wave_settings.top_color).changed() { self.clear_wave_cache(); }
+                        if ui.color_edit_button_srgba(&mut self.visual.wave.top_color).changed() { self.clear_wave_cache(); }
                         ui.label("Positivo");
-                        if ui.color_edit_button_srgba(&mut self.wave_settings.bot_color).changed() { self.clear_wave_cache(); }
+                        if ui.color_edit_button_srgba(&mut self.visual.wave.bot_color).changed() { self.clear_wave_cache(); }
                         ui.label("Negativo");
                     });
                     ui.horizontal(|ui| {
                         ui.label("Linha Spline:");
-                        if ui.color_edit_button_srgba(&mut self.wave_settings.line_color).changed() { self.clear_wave_cache(); }
-                        ui.add(egui::Slider::new(&mut self.wave_settings.thickness, 0.5..=5.0).step_by(0.1));
+                        if ui.color_edit_button_srgba(&mut self.visual.wave.line_color).changed() { self.clear_wave_cache(); }
+                        ui.add(egui::Slider::new(&mut self.visual.wave.thickness, 0.5..=5.0).step_by(0.1));
                     });
                     ui.separator();
 
@@ -127,7 +127,7 @@ impl CopaibaApp {
                     ui.separator();
 
                     ui.heading("🎨 Espectrograma");
-                    ui.checkbox(&mut self.show_spectrogram, "Habilitar Espectrograma HD");
+                    ui.checkbox(&mut self.visual.show_spectrogram, "Habilitar Espectrograma HD");
                     ui.add_space(4.0);
 
                     let mut fft_changed = false;
@@ -136,34 +136,34 @@ impl CopaibaApp {
                     ui.horizontal(|ui| {
                         ui.label("FFT Size:");
                         for &sz in &[512usize, 1024, 2048, 4096, 8192] {
-                            if ui.selectable_label(self.spec_settings.fft_size == sz, sz.to_string()).clicked() {
-                                self.spec_settings.fft_size = sz; fft_changed = true;
+                            if ui.selectable_label(self.visual.spec.fft_size == sz, sz.to_string()).clicked() {
+                                self.visual.spec.fft_size = sz; fft_changed = true;
                             }
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.label("Hop Size:");
                         for &sz in &[64usize, 128, 256, 512] {
-                            if ui.selectable_label(self.spec_settings.hop_size == sz, sz.to_string()).clicked() {
-                                self.spec_settings.hop_size = sz; fft_changed = true;
+                            if ui.selectable_label(self.visual.spec.hop_size == sz, sz.to_string()).clicked() {
+                                self.visual.spec.hop_size = sz; fft_changed = true;
                             }
                         }
                     });
                     ui.horizontal(|ui| {
                         ui.label("Freq vín (Hz):");
-                        if ui.add(egui::DragValue::new(&mut self.spec_settings.min_freq).speed(5.0).range(1.0..=5000.0).suffix(" Hz")).changed() { render_changed = true; }
+                        if ui.add(egui::DragValue::new(&mut self.visual.spec.min_freq).speed(5.0).range(1.0..=5000.0).suffix(" Hz")).changed() { render_changed = true; }
                     });
                     ui.horizontal(|ui| {
                         ui.label("Freq máx (Hz):");
-                        if ui.add(egui::DragValue::new(&mut self.spec_settings.max_freq).speed(100.0).range(0.0..=24000.0).suffix(" Hz")).changed() { render_changed = true; }
+                        if ui.add(egui::DragValue::new(&mut self.visual.spec.max_freq).speed(100.0).range(0.0..=24000.0).suffix(" Hz")).changed() { render_changed = true; }
                     });
                     ui.horizontal(|ui| {
                         ui.label("Piso de ruído (dB):");
-                        if ui.add(egui::Slider::new(&mut self.spec_settings.min_db, -120.0_f32..=-20.0).suffix(" dB")).changed() { render_changed = true; }
+                        if ui.add(egui::Slider::new(&mut self.visual.spec.min_db, -120.0_f32..=-20.0).suffix(" dB")).changed() { render_changed = true; }
                     });
                     ui.horizontal(|ui| {
                         ui.label("Gama (contraste):");
-                        if ui.add(egui::Slider::new(&mut self.spec_settings.gamma, 0.1_f32..=1.5).step_by(0.05)).changed() { render_changed = true; }
+                        if ui.add(egui::Slider::new(&mut self.visual.spec.gamma, 0.1_f32..=1.5).step_by(0.05)).changed() { render_changed = true; }
                     });
                     ui.horizontal(|ui| {
                         ui.label("Paleta:");
@@ -173,38 +173,34 @@ impl CopaibaApp {
                             (ColormapKind::Viridis, "🌿 Viridis"),
                             (ColormapKind::Grayscale, "⬜ Gray"),
                         ] {
-                            if ui.selectable_label(self.spec_settings.colormap == *kind, *label).clicked() {
-                                self.spec_settings.colormap = kind.clone(); render_changed = true;
+                            if ui.selectable_label(self.visual.spec.colormap == *kind, *label).clicked() {
+                                self.visual.spec.colormap = kind.clone(); render_changed = true;
                             }
                         }
                     });
-                    if ui.checkbox(&mut self.spec_settings.adaptive_norm, "Normalização Adaptativa").changed() { render_changed = true; }
+                    if ui.checkbox(&mut self.visual.spec.adaptive_norm, "Normalização Adaptativa").changed() { render_changed = true; }
 
                     if fft_changed {
                         self.spec_data_cache.clear();
-                        let tab = self.cur_mut();
-                        tab.wave_view.spec_cache = crate::waveform::SpecCache::default();
-                        if let Some(idx) = tab.filtered.get(tab.selected).copied() {
-                            let fname = tab.entries[idx].filename.clone();
-                            if let Some(wav) = self.wav_cache.get(&fname) {
-                                if let Some(sd) = crate::spectrogram::compute_spectrogram_data(&wav.samples, wav.sample_rate, &self.spec_settings) {
-                                    self.spec_data_cache.insert(fname, sd);
-                                }
-                            }
+                        for t in &mut self.tabs {
+                            t.wave_view.spec_cache = crate::waveform::SpecCache::default();
                         }
+                        self.ensure_wav_loaded();
                     } else if render_changed {
-                        self.cur_mut().wave_view.spec_cache = crate::waveform::SpecCache::default();
+                        for t in &mut self.tabs {
+                            t.wave_view.spec_cache = crate::waveform::SpecCache::default();
+                        }
                     }
 
                     ui.separator();
-                    if ui.button("Fechar").clicked() { self.show_settings = false; }
+                    if ui.button("Fechar").clicked() { self.ui.show_settings = false; }
                 });
             });
-        if !open { self.show_settings = false; }
+        if !open { self.ui.show_settings = false; }
     }
 
     fn modal_help(&mut self, ctx: &egui::Context) {
-        if !self.show_help { return; }
+        if !self.ui.show_help { return; }
         let mut open = true;
         egui::Window::new("Cheatsheet de Atalhos")
             .open(&mut open)
@@ -230,11 +226,11 @@ impl CopaibaApp {
                     ui.label("Ctrl+Shift+Esp"); ui.label("Teste de Síntese"); ui.end_row();
                 });
             });
-        if !open { self.show_help = false; }
+        if !open { self.ui.show_help = false; }
     }
 
     fn modal_batch_rename(&mut self, ctx: &egui::Context) {
-        if !self.show_batch_rename { return; }
+        if !self.ui.show_batch_rename { return; }
         let mut open = true;
         egui::Window::new("📝 Renomear em Massa (Enxertia)")
             .open(&mut open)
@@ -271,17 +267,17 @@ impl CopaibaApp {
                         }
                     }
                     tab.dirty = true;
-                    self.show_batch_rename = false;
+                    self.ui.show_batch_rename = false;
                     self.rename_find.clear(); self.rename_replace.clear();
                     self.rename_prefix.clear(); self.rename_suffix.clear();
                     self.rebuild_filter();
                 }
             });
-        if !open { self.show_batch_rename = false; }
+        if !open { self.ui.show_batch_rename = false; }
     }
 
     fn modal_batch_edit(&mut self, ctx: &egui::Context) {
-        if !self.show_batch_edit { return; }
+        if !self.ui.show_batch_edit { return; }
         let mut open = true;
         egui::Window::new("📊 Edição em Lote")
             .open(&mut open)
@@ -315,15 +311,15 @@ impl CopaibaApp {
                         }
                     }
                     tab.dirty = true;
-                    self.show_batch_edit = false;
+                    self.ui.show_batch_edit = false;
                     self.rebuild_filter();
                 }
             });
-        if !open { self.show_batch_edit = false; }
+        if !open { self.ui.show_batch_edit = false; }
     }
 
     fn modal_alias_sorter(&mut self, ctx: &egui::Context) {
-        if !self.show_alias_sorter { return; }
+        if !self.ui.show_alias_sorter { return; }
         let mut open = true;
         egui::Window::new("↕ Ordenar Aliases")
             .open(&mut open)
@@ -346,15 +342,15 @@ impl CopaibaApp {
                     let tab = self.cur_mut();
                     plugins::sort_entries(&mut tab.entries, &settings);
                     tab.dirty = true;
-                    self.show_alias_sorter = false;
+                    self.ui.show_alias_sorter = false;
                     self.rebuild_filter();
                 }
             });
-        if !open { self.show_alias_sorter = false; }
+        if !open { self.ui.show_alias_sorter = false; }
     }
 
     fn modal_consistency_checker(&mut self, ctx: &egui::Context) {
-        if !self.show_consistency_checker { return; }
+        if !self.ui.show_consistency_checker { return; }
         let mut open = true;
         egui::Window::new("🔍 Verificador de Consistência")
             .open(&mut open)
@@ -363,16 +359,16 @@ impl CopaibaApp {
                 ui.horizontal(|ui| {
                     if ui.button("🚀 Escanear Agora").clicked() {
                         let tab = self.cur();
-                        self.consistency_issues = plugins::check_consistency(&tab.entries, tab.oto_dir.as_deref());
+                        self.ui.consistency_issues = plugins::check_consistency(&tab.entries, tab.oto_dir.as_deref());
                     }
-                    ui.label(format!("Problemas encontrados: {}", self.consistency_issues.len()));
+                    ui.label(format!("Problemas encontrados: {}", self.ui.consistency_issues.len()));
                 });
                 ui.separator();
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     egui::Grid::new("consistency_grid").striped(true).show(ui, |ui| {
                         ui.label("Linha"); ui.label("Alias"); ui.label("Mensagem"); ui.end_row();
                         let mut jump_to = None;
-                        for issue in &self.consistency_issues {
+                        for issue in &self.ui.consistency_issues {
                             ui.label((issue.row + 1).to_string());
                             ui.label(&issue.alias);
                             if ui.link(&issue.message).clicked() { jump_to = Some(issue.row); }
@@ -382,11 +378,11 @@ impl CopaibaApp {
                     });
                 });
             });
-        if !open { self.show_consistency_checker = false; }
+        if !open { self.ui.show_consistency_checker = false; }
     }
 
     fn modal_duplicate_detector(&mut self, ctx: &egui::Context) {
-        let mut show_dups = self.show_duplicate_detector;
+        let mut show_dups = self.ui.show_duplicate_detector;
         if show_dups {
             egui::Window::new("✂ Detector de Duplicatas")
                 .open(&mut show_dups)
@@ -396,7 +392,7 @@ impl CopaibaApp {
                     ui.separator();
                     if ui.button("🔍 Escanear").clicked() {
                         let tab = self.cur();
-                        self.duplicate_results = plugins::detect_duplicates(&tab.entries, true, true, true, false);
+                        self.ui.duplicate_results = plugins::detect_duplicates(&tab.entries, true, true, true, false);
                     }
                     ui.add_space(8.0);
                     egui::ScrollArea::vertical().show(ui, |ui| {
@@ -404,7 +400,7 @@ impl CopaibaApp {
                             ui.label("Tipo"); ui.label("Alias A"); ui.label("Alias B"); ui.label("Ação"); ui.end_row();
                             let mut delete_row = None;
                             let mut jump_to = None;
-                            for dup in &self.duplicate_results {
+                            for dup in &self.ui.duplicate_results {
                                 ui.label(match dup.match_type.as_str() {
                                     "exact" => "Exata", "case" => "Case", "functional" => "Funcional", _ => "Similar",
                                 });
@@ -424,17 +420,17 @@ impl CopaibaApp {
                                 tab.entries.remove(row);
                                 tab.dirty = true;
                                 self.rebuild_filter();
-                                self.duplicate_results.clear();
+                                self.ui.duplicate_results.clear();
                             }
                         });
                     });
                 });
         }
-        self.show_duplicate_detector = show_dups;
+        self.ui.show_duplicate_detector = show_dups;
     }
 
     fn modal_pitch_analyzer(&mut self, ctx: &egui::Context) {
-        let mut show_pitch = self.show_pitch_analyzer;
+        let mut show_pitch = self.ui.show_pitch_analyzer;
         if show_pitch {
             egui::Window::new("🎵 Análise de Pitch")
                 .open(&mut show_pitch)
@@ -493,7 +489,7 @@ impl CopaibaApp {
                         });
                 });
         }
-        self.show_pitch_analyzer = show_pitch;
+        self.ui.show_pitch_analyzer = show_pitch;
     }
     pub fn clear_wave_cache(&mut self) {
         for tab in &mut self.tabs {

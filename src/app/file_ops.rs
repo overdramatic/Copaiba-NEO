@@ -238,7 +238,7 @@ impl CopaibaApp {
                             }
                         }
 
-                        let tab = &mut self.tabs[tab_idx];
+                        let tab: &mut TabState = &mut self.tabs[tab_idx];
                         tab.character_name = name;
                         tab.character_image_path = image;
                         tab.character_texture = None;
@@ -286,11 +286,11 @@ impl CopaibaApp {
                     self.select_multi(0, false, false);
                 }
                 self.load_character_metadata(self.current_tab);
-                self.status = format!("{} aliases carregados.", self.cur().entries.len());
+                self.ui.status = format!("{} aliases carregados.", self.cur().entries.len());
                 self.save_prefs();
             }
             Err(e) => {
-                self.status = format!("Erro ao abrir: {e}");
+                self.ui.status = format!("Erro ao abrir: {e}");
             }
         }
     }
@@ -312,10 +312,10 @@ impl CopaibaApp {
                     let tab = self.cur_mut();
                     tab.original_entries = tab.entries.clone();
                     tab.dirty = false;
-                    self.status = "Salvo com sucesso.".to_string();
+                    self.ui.status = "Salvo com sucesso.".to_string();
                 }
                 Err(e) => {
-                    self.status = format!("Erro ao salvar: {e}");
+                    self.ui.status = format!("Erro ao salvar: {e}");
                 }
             }
         } else {
@@ -345,19 +345,28 @@ impl CopaibaApp {
             (tab.entries[idx].filename.clone(), tab.oto_dir.clone())
         };
 
-        let full_path_key = dir_opt.as_ref().map(|d| d.join(&fname).to_string_lossy().to_string()).unwrap_or_else(|| fname.clone());
-        if self.wav_cache.contains_key(&full_path_key) { return; }
+        let full_path_key = dir_opt.as_ref().map(|d: &PathBuf| d.join(&fname).to_string_lossy().to_string()).unwrap_or_else(|| fname.clone());
+        
+        let needs_spec = self.visual.show_spectrogram && !self.spec_data_cache.contains_key(&full_path_key);
+        if self.wav_cache.contains_key(&full_path_key) && !needs_spec { return; }
 
-        let dir_opt: Option<PathBuf> = dir_opt;
         if let Some(dir) = dir_opt {
             let wav_path = dir.join(&fname);
+            let full_path_key = wav_path.to_string_lossy().to_string();
+
+            if let Some(wav) = self.wav_cache.get(&full_path_key) {
+                // WAV is loaded but spectrogram is missing (likely settings changed)
+                let spec_set = self.visual.spec.clone();
+                if let Some(sd) = crate::spectrogram::compute_spectrogram_data(&wav.samples, wav.sample_rate, &spec_set) {
+                    self.spec_data_cache.insert(full_path_key, sd);
+                }
+                return;
+            }
+
             match load_wav(&wav_path) {
                 Ok(wav_with_spec) => {
                     if self.wav_cache.len() >= 5 {
-                        let mut to_rem = None;
-                        if let Some(k) = self.wav_cache.keys().next() {
-                            to_rem = Some(k.clone());
-                        }
+                        let to_rem = self.wav_cache.keys().next().cloned();
                         if let Some(k) = to_rem {
                             self.wav_cache.remove(&k);
                             self.spec_data_cache.remove(&k);
@@ -365,19 +374,19 @@ impl CopaibaApp {
                     }
 
                     let dur = wav_with_spec.wav.duration_ms;
-                    let spec_set = self.spec_settings.clone();
+                    let spec_set = self.visual.spec.clone();
                     let full_path_key = wav_path.to_string_lossy().to_string();
                     if let Some(sd) = crate::spectrogram::compute_spectrogram_data(&wav_with_spec.wav.samples, wav_with_spec.wav.sample_rate, &spec_set) {
                         self.spec_data_cache.insert(full_path_key.clone(), sd);
                     }
                     self.wav_cache.insert(full_path_key, wav_with_spec.wav);
 
-                    let persistent = self.persistent_zoom;
+                    let persistent = self.visual.persistent_zoom;
                     if !persistent {
                         self.cur_mut().wave_view.reset_to(dur);
                     }
                 }
-                Err(e) => { self.status = format!("WAV '{fname}': {e}"); }
+                Err(e) => { self.ui.status = format!("WAV '{fname}': {e}"); }
             }
         }
     }

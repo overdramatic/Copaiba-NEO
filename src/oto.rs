@@ -102,11 +102,11 @@ fn parse_line(line: &str, idx: usize) -> Option<OtoEntry> {
     }
 
     let alias = parts[0].to_string();
-    let offset = parts[1].trim().parse::<f64>().unwrap_or(0.0);
-    let consonant = parts[2].trim().parse::<f64>().unwrap_or(0.0);
-    let cutoff = parts[3].trim().parse::<f64>().unwrap_or(0.0);
-    let preutter = parts[4].trim().parse::<f64>().unwrap_or(0.0);
-    let overlap = parts[5].trim().parse::<f64>().unwrap_or(0.0);
+    let offset = parts.get(1).and_then(|s| s.trim().parse::<f64>().ok()).unwrap_or(0.0);
+    let consonant = parts.get(2).and_then(|s| s.trim().parse::<f64>().ok()).unwrap_or(0.0);
+    let cutoff = parts.get(3).and_then(|s| s.trim().parse::<f64>().ok()).unwrap_or(0.0);
+    let preutter = parts.get(4).and_then(|s| s.trim().parse::<f64>().ok()).unwrap_or(0.0);
+    let overlap = parts.get(5).and_then(|s| s.trim().parse::<f64>().ok()).unwrap_or(0.0);
 
     Some(OtoEntry {
         filename,
@@ -122,26 +122,25 @@ fn parse_line(line: &str, idx: usize) -> Option<OtoEntry> {
     })
 }
 
-/// Save entries back to an oto.ini file.
 pub fn save_oto(entries: &[OtoEntry], path: &Path, encoding: OtoEncoding) -> Result<(), String> {
-    let text = entries
-        .iter()
-        .map(|e| e.to_line())
-        .collect::<Vec<_>>()
-        .join("\r\n")
-        + "\r\n";
+    use std::io::Write;
 
-    let bytes: Vec<u8> = match encoding {
-        OtoEncoding::Utf8 => text.into_bytes(),
+    let mut buffer = Vec::with_capacity(entries.len() * 100);
+    for entry in entries {
+        writeln!(buffer, "{}", entry.to_line()).map_err(|e| e.to_string())?;
+    }
+
+    let final_bytes: Vec<u8> = match encoding {
+        OtoEncoding::Utf8 => buffer,
         OtoEncoding::ShiftJis => {
-            let (encoded, _, _) = encoding_rs::SHIFT_JIS.encode(&text);
+            let (encoded, _, _) = encoding_rs::SHIFT_JIS.encode(std::str::from_utf8(&buffer).unwrap_or(""));
             encoded.into_owned()
         }
         OtoEncoding::Gbk => {
-            let (encoded, _, _) = encoding_rs::GBK.encode(&text);
+            let (encoded, _, _) = encoding_rs::GBK.encode(std::str::from_utf8(&buffer).unwrap_or(""));
             encoded.into_owned()
         }
     };
 
-    fs::write(path, bytes).map_err(|e| e.to_string())
+    fs::write(path, final_bytes).map_err(|e| e.to_string())
 }

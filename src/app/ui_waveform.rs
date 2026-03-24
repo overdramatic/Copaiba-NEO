@@ -23,29 +23,29 @@ impl CopaibaApp {
                     let fname = tab.entries[idx].filename.clone();
                     let full_path = tab.oto_dir.as_ref().map(|d| d.join(&fname).to_string_lossy().to_string()).unwrap_or(fname);
                     let wav = self.wav_cache.get(&full_path).cloned();
-                    let sd = if self.show_spectrogram { self.spec_data_cache.get(&full_path).cloned() } else { None };
+                    let sd = if self.visual.show_spectrogram { self.spec_data_cache.get(&full_path).cloned() } else { None };
                     (wav, sd)
                 };
 
                 if let Some(wav) = wav_opt {
-                    let mut playback_cursor_val = self.playback_start.map(|s| {
+                    let mut playback_cursor_val = self.audio.playback_start.map(|s| {
                         let elapsed = s.elapsed().as_secs_f64() * 1000.0;
-                        self.playback_offset_ms + elapsed
+                        self.audio.playback_offset_ms + elapsed
                     });
 
-                    if let (Some(cur), Some(limit)) = (playback_cursor_val, self.playback_limit_ms) {
+                    if let (Some(cur), Some(limit)) = (playback_cursor_val, self.audio.playback_limit_ms) {
                         if cur >= limit {
-                            self.playback_start = None;
-                            self.playback_limit_ms = None;
+                            self.audio.playback_start = None;
+                            self.audio.playback_limit_ms = None;
                             playback_cursor_val = None;
                         }
                     }
 
-                    let spec_set = self.spec_settings.clone();
-                    let wave_set = self.wave_settings.clone();
-                    let show_min = self.show_minimap;
-                    let profile = self.shortcut_profile;
-                    let customs = self.custom_shorts.clone();
+                    let spec_set = self.visual.spec.clone();
+                    let wave_set = self.visual.wave.clone();
+                    let show_min = self.visual.show_minimap;
+                    let profile = self.config.shortcut_profile;
+                    let customs = self.config.custom_shorts.clone();
 
                     let mut curr_do_undo = false;
                     let mut curr_do_dirty = false;
@@ -75,6 +75,8 @@ impl CopaibaApp {
                             let (k_off, k_ove, k_pre, k_con, k_cut) = match profile {
                                 ShortcutProfile::Copaiba => (egui::Key::Q, egui::Key::W, egui::Key::E, egui::Key::R, egui::Key::T),
                                 ShortcutProfile::SetParam => (egui::Key::F1, egui::Key::F2, egui::Key::F3, egui::Key::F4, egui::Key::F5),
+                                ShortcutProfile::Utau => (egui::Key::Q, egui::Key::W, egui::Key::E, egui::Key::R, egui::Key::T), // Placeholder
+                                ShortcutProfile::VLabeler => (egui::Key::Q, egui::Key::W, egui::Key::E, egui::Key::R, egui::Key::T), // Placeholder
                                 ShortcutProfile::Custom => (customs.off, customs.ove, customs.pre, customs.con, customs.cut),
                             };
 
@@ -158,8 +160,8 @@ impl CopaibaApp {
                     if let Some(fi) = curr_nav_sel {
                         let old_sel = self.cur().selected;
                         self.select_multi(fi, false, false);
-                        if self.play_on_select && self.cur().selected != old_sel { self.play_current_segment(false); }
-                    } else if curr_trigger_play && self.play_on_select {
+                        if self.config.play_on_select && self.cur().selected != old_sel { self.play_current_segment(false); }
+                    } else if curr_trigger_play && self.config.play_on_select {
                         self.play_current_segment(false);
                     }
                 }
@@ -228,17 +230,17 @@ impl CopaibaApp {
         if ctrl && ctx.input(|i| i.key_pressed(egui::Key::O)) { self.open_oto(); }
 
         // Settings
-        if ctrl && ctx.input(|i| i.key_pressed(egui::Key::Comma)) { self.show_settings = !self.show_settings; }
+        if ctrl && ctx.input(|i| i.key_pressed(egui::Key::Comma)) { self.ui.show_settings = !self.ui.show_settings; }
 
         // Undo / Redo
         if ctrl && ctx.input(|i| i.key_pressed(egui::Key::Z)) { self.undo(ctx); }
         if ctrl && ctx.input(|i| i.key_pressed(egui::Key::Y)) { self.redo(ctx); }
 
         // Help
-        if ctx.input(|i| i.key_pressed(egui::Key::F1)) { self.show_help = !self.show_help; }
+        if ctx.input(|i| i.key_pressed(egui::Key::F1)) { self.ui.show_help = !self.ui.show_help; }
 
         // Recorder
-        if ctx.input(|i| i.key_pressed(egui::Key::F9)) { self.show_recorder = !self.show_recorder; }
+        if ctx.input(|i| i.key_pressed(egui::Key::F9)) { self.ui.show_recorder = !self.ui.show_recorder; }
 
         // Mark done
         if ctrl && ctx.input(|i| i.key_pressed(egui::Key::M)) {

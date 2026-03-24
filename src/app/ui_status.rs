@@ -6,9 +6,11 @@ impl CopaibaApp {
         egui::TopBottomPanel::bottom("status_bar").show(ctx, |ui| {
             ui.horizontal_wrapped(|ui| {
                 let tab = self.cur();
-                let dirty_marker = if tab.dirty { " ●" } else { "" };
-                if let Some(ref p) = tab.oto_path {
-                    ui.label(RichText::new(format!("{}{dirty_marker}", p.display())).color(egui::Color32::from_rgb(140, 200, 140)).small());
+
+                // Display project path or "Novo Arquivo"
+                if let Some(p) = &self.project_path {
+                    let dirty_marker = if self.tabs.iter().any(|t| t.dirty) { "*" } else { "" };
+                    ui.label(egui::RichText::new(format!("{}{dirty_marker}", p.display())).color(egui::Color32::from_rgb(140, 140, 160)).size(11.0));
                 } else {
                     ui.label(RichText::new("Novo Arquivo").color(egui::Color32::LIGHT_GRAY).small());
                 }
@@ -39,7 +41,7 @@ impl CopaibaApp {
 
                     ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                         ui.add_space(16.0);
-                        ui.label(RichText::new(&self.status).small());
+                        ui.label(RichText::new(&self.ui.status).small());
                     });
                 });
             });

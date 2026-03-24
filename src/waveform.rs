@@ -55,6 +55,7 @@ pub enum DragTarget {
 }
 
 /// Cached spectrogram texture to avoid re-rendering every frame.
+#[derive(Clone, PartialEq)]
 pub struct SpecCache {
     pub texture: Option<egui::TextureHandle>,
     pub view_start: f64,
@@ -71,6 +72,7 @@ impl Default for SpecCache {
 }
 
 /// Cached minimap texture (only rebuilt when WAV width changes)
+#[derive(Clone, PartialEq)]
 pub struct MinimapCache {
     pub texture: Option<egui::TextureHandle>,
     pub width: usize,  // canvas pixel width at which it was built
@@ -82,6 +84,7 @@ impl Default for MinimapCache {
 }
 
 /// Cached envelope (waveform blocks) texture
+#[derive(Clone, PartialEq)]
 pub struct WaveCache {
     pub texture: Option<egui::TextureHandle>,
     pub view_start: f64,
@@ -99,6 +102,7 @@ impl Default for WaveCache {
 }
 
 /// View state: persistent zoom & pan
+#[derive(Clone, PartialEq)]
 pub struct WaveformView {
     pub view_start_ms: f64,
     pub view_range_ms: f64,

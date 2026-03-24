@@ -14,14 +14,14 @@ impl CopaibaApp {
                 let mut to_remove = None;
                 for i in 0..self.tabs.len() {
                     let is_active = self.current_tab == i;
-                    let is_renaming = self.renaming_tab == Some(i);
+                    let is_renaming = self.ui.renaming_tab == Some(i);
 
                     ui.style_mut().spacing.item_spacing.x = 2.0;
                     ui.horizontal(|ui| {
                         if is_renaming {
                             let resp = ui.add(egui::TextEdit::singleline(&mut self.tabs[i].name).desired_width(80.0));
                             if resp.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                                self.renaming_tab = None;
+                                self.ui.renaming_tab = None;
                             }
                         } else {
                             let name = format!("{}{} ", self.tabs[i].name, if self.tabs[i].dirty { "*" } else { "" });
@@ -32,7 +32,7 @@ impl CopaibaApp {
                                     self.current_tab = i;
                                 }
                             }
-                            if resp.double_clicked() { self.renaming_tab = Some(i); }
+                            if resp.double_clicked() { self.ui.renaming_tab = Some(i); }
                         }
 
                         if self.tabs.len() > 1 && !is_renaming {

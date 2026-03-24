@@ -34,7 +34,7 @@ impl CopaibaApp {
                     }
 
                     ui.add_space(4.0);
-                    if ui.button("Editar Presets...").clicked() { self.show_preset_editor = true; }
+                    if ui.button("Editar Presets...").clicked() { self.ui.show_preset_editor = true; }
 
                     ui.add_space(20.0);
                     ui.heading("🕹️ Modos de Edição");
@@ -51,7 +51,7 @@ impl CopaibaApp {
                         ui.label(egui::RichText::new("Atrai marcadores para picos").small());
                     }
                     ui.add_space(8.0);
-                    ui.checkbox(&mut self.persistent_zoom, "Zoom Persistente");
+                    ui.checkbox(&mut self.visual.persistent_zoom, "Zoom Persistente");
                     ui.label(egui::RichText::new("Não reseta zoom ao trocar alias").small());
 
                     ui.add_space(20.0);

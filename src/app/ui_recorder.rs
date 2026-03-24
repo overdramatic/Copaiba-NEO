@@ -9,7 +9,7 @@ use crate::app::recorder;
 
 impl CopaibaApp {
     pub fn modal_recorder(&mut self, ctx: &egui::Context) {
-        if !self.show_recorder { return; }
+        if !self.ui.show_recorder { return; }
 
         let mut open = true;
         egui::Window::new("Regravar Alias")
@@ -26,7 +26,7 @@ impl CopaibaApp {
                     });
                     ui.separator();
 
-                    if self.is_recording {
+                    if self.audio.is_recording {
                         ui.vertical_centered(|ui| {
                             ui.add_space(20.0);
                             ui.label(RichText::new("🔴 Gravando...").color(egui::Color32::RED).size(24.0));
@@ -35,7 +35,7 @@ impl CopaibaApp {
                                 self.stop_recording();
                             }
                         });
-                    } else if let Some(recorded) = self.recorded_wav.clone() {
+                    } else if let Some(recorded) = self.audio.recorded_wav.clone() {
                         ui.label("Gravação concluída. Revise abaixo:");
                         
                         // Mini waveform preview
@@ -61,7 +61,7 @@ impl CopaibaApp {
                                 self.play_wav_data(recorded);
                             }
                             if ui.button("⏺ Regravar").clicked() {
-                                self.recorded_wav = None;
+                                self.audio.recorded_wav = None;
                                 self.start_recording();
                             }
                         });
@@ -71,16 +71,16 @@ impl CopaibaApp {
                         ui.horizontal(|ui| {
                             if ui.button(RichText::new("✅ Substituir Gravação Atual").color(egui::Color32::GOLD)).clicked() {
                                 if let Err(e) = self.save_recorded_wav(&entry.filename) {
-                                    self.status = format!("Erro ao salvar: {}", e);
+                                    self.ui.status = format!("Erro ao salvar: {}", e);
                                 } else {
-                                    self.status = format!("Gravado com sucesso: {}", entry.alias);
-                                    self.show_recorder = false;
-                                    self.recorded_wav = None;
+                                    self.ui.status = format!("Gravado com sucesso: {}", entry.alias);
+                                    self.ui.show_recorder = false;
+                                    self.audio.recorded_wav = None;
                                 }
                             }
                             if ui.button("❌ Descartar").clicked() {
-                                self.recorded_wav = None;
-                                self.show_recorder = false;
+                                self.audio.recorded_wav = None;
+                                self.ui.show_recorder = false;
                             }
                         });
                     } else {
@@ -94,51 +94,51 @@ impl CopaibaApp {
                     }
                 } else {
                     ui.label("Nenhum alias selecionado na tabela.");
-                    if ui.button("Fechar").clicked() { self.show_recorder = false; }
+                    if ui.button("Fechar").clicked() { self.ui.show_recorder = false; }
                 }
             });
 
         if !open {
-            if self.is_recording { self.stop_recording(); }
-            self.show_recorder = false;
+            if self.audio.is_recording { self.stop_recording(); }
+            self.ui.show_recorder = false;
         }
     }
 
     fn start_recording(&mut self) {
-        self.recorder_samples.lock().unwrap().clear();
-        self.recorder_stop_signal.store(false, Ordering::SeqCst);
-        match recorder::start_recording(self.recorder_samples.clone(), self.recorder_stop_signal.clone()) {
+        self.audio.recorder_samples.lock().unwrap().clear();
+        self.audio.recorder_stop_signal.store(false, Ordering::SeqCst);
+        match recorder::start_recording(self.audio.recorder_samples.clone(), self.audio.recorder_stop_signal.clone()) {
             Ok((stream, rate)) => {
-                self.recorder_stream = Some(stream);
-                self.recorder_sample_rate = rate;
-                self.is_recording = true;
-                self.status = format!("Gravando a {} Hz...", rate);
+                self.audio.recorder_stream = Some(stream);
+                self.audio.recorder_sample_rate = rate;
+                self.audio.is_recording = true;
+                self.ui.status = format!("Gravando a {} Hz...", rate);
             }
             Err(e) => {
-                self.status = format!("Erro ao iniciar gravação: {}", e);
+                self.ui.status = format!("Erro ao iniciar gravação: {}", e);
             }
         }
     }
 
     fn stop_recording(&mut self) {
-        if self.is_recording {
-            self.recorder_stop_signal.store(true, Ordering::SeqCst);
-            self.recorder_stream = None; // Drop stream
-            self.is_recording = false;
+        if self.audio.is_recording {
+            self.audio.recorder_stop_signal.store(true, Ordering::SeqCst);
+            self.audio.recorder_stream = None; // Drop stream
+            self.audio.is_recording = false;
 
-            let samples = self.recorder_samples.lock().unwrap().clone();
+            let samples = self.audio.recorder_samples.lock().unwrap().clone();
             if !samples.is_empty() {
-                self.recorded_wav = Some(WavData {
+                self.audio.recorded_wav = Some(WavData {
                     samples: Arc::new(samples),
-                    sample_rate: self.recorder_sample_rate,
-                    duration_ms: (self.recorder_samples.lock().unwrap().len() as f64 / self.recorder_sample_rate as f64) * 1000.0,
+                    sample_rate: self.audio.recorder_sample_rate,
+                    duration_ms: (self.audio.recorder_samples.lock().unwrap().len() as f64 / self.audio.recorder_sample_rate as f64) * 1000.0,
                 });
             }
         }
     }
 
-    pub fn save_recorded_wav(&mut self, filename: &str) -> Result<(), String> {
-        if let Some(wav) = self.recorded_wav.clone() {
+    pub fn save_recorded_wav(&mut self, filename: &str) -> Result<() , String> {
+        if let Some(wav) = self.audio.recorded_wav.clone() {
             let path = {
                 let tab = self.cur();
                 if let Some(dir) = &tab.oto_dir { dir.join(filename) } else { std::path::PathBuf::from(filename) }
@@ -153,7 +153,7 @@ impl CopaibaApp {
 
             let mut writer = hound::WavWriter::create(&path, spec).map_err(|e| e.to_string())?;
             for &sample in wav.samples.iter() {
-                let amplitude = (sample.clamp(-1.0, 1.0) * 32767.0) as i16;
+                let amplitude = (sample.clamp(-1.0_f32, 1.0_f32) * 32767.0) as i16;
                 writer.write_sample(amplitude).map_err(|e| e.to_string())?;
             }
             writer.finalize().map_err(|e| e.to_string())?;
