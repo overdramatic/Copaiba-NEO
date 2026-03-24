@@ -24,6 +24,7 @@ impl CopaibaApp {
     fn modal_exit_dialog(&mut self, ctx: &egui::Context) {
         if !self.ui.show_exit_dialog { return; }
         egui::Window::new(tr!("modal.exit.window.name"))
+            .id(egui::Id::new("exit_dialog"))
             .collapsible(false)
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .show(ctx, |ui| {
@@ -68,6 +69,7 @@ impl CopaibaApp {
         if !self.ui.show_preset_editor { return; }
         let mut close = false;
         egui::Window::new(tr!("modal.preset.window.name"))
+            .id(egui::Id::new("preset_editor"))
             .collapsible(false)
             .resizable(false)
             .show(ctx, |ui| {
@@ -95,6 +97,7 @@ impl CopaibaApp {
         if !self.ui.show_settings { return; }
         let mut open = true;
         egui::Window::new(format!("⚙ {}", tr!("modal.settings.window.name")))
+            .id(egui::Id::new("settings"))
             .open(&mut open)
             .default_size([400.0, 600.0])
             .show(ctx, |ui| {
@@ -220,6 +223,7 @@ impl CopaibaApp {
         if !self.ui.show_help { return; }
         let mut open = true;
         egui::Window::new(tr!("modal.shortcuts.window.name"))
+            .id(egui::Id::new("help"))
             .open(&mut open)
             .show(ctx, |ui| {
                 egui::Grid::new("shorts").striped(true).show(ui, |ui| {
@@ -250,6 +254,7 @@ impl CopaibaApp {
         if !self.ui.show_batch_rename { return; }
         let mut open = true;
         egui::Window::new(format!("📝 {}", tr!("modal.batch_rename.window.name")))
+            .id(egui::Id::new("batch_rename"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -297,6 +302,7 @@ impl CopaibaApp {
         if !self.ui.show_batch_edit { return; }
         let mut open = true;
         egui::Window::new(format!("📊 {}", tr!("modal.batch_edit.window.name")))
+            .id(egui::Id::new("batch_edit"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -339,6 +345,7 @@ impl CopaibaApp {
         if !self.ui.show_alias_sorter { return; }
         let mut open = true;
         egui::Window::new(format!("↕ {}", tr!("modal.org_alias.window.name")))
+            .id(egui::Id::new("alias_sorter"))
             .open(&mut open)
             .collapsible(false)
             .resizable(false)
@@ -370,6 +377,7 @@ impl CopaibaApp {
         if !self.ui.show_consistency_checker { return; }
         let mut open = true;
         egui::Window::new(format!("🔍 {}", tr!("modal.consistency_checker.window.name")))
+            .id(egui::Id::new("consistency_checker"))
             .open(&mut open)
             .default_size([700.0, 500.0])
             .show(ctx, |ui| {
@@ -402,6 +410,7 @@ impl CopaibaApp {
         let mut show_dups = self.ui.show_duplicate_detector;
         if show_dups {
             egui::Window::new(format!("✂ {}", tr!("modal.duplicate_detector.window.name")))
+                .id(egui::Id::new("duplicate_detector"))
                 .open(&mut show_dups)
                 .default_size([700.0, 500.0])
                 .show(ctx, |ui| {
@@ -450,6 +459,7 @@ impl CopaibaApp {
         let mut show_pitch = self.ui.show_pitch_analyzer;
         if show_pitch {
             egui::Window::new(format!("🎵 {}", tr!("modal.pitch_analyzer.window.name")))
+                .id(egui::Id::new("pitch_analyzer"))
                 .open(&mut show_pitch)
                 .default_size([700.0, 450.0])
                 .show(ctx, |ui| {

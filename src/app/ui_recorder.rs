@@ -14,6 +14,7 @@ impl CopaibaApp {
 
         let mut open = true;
         egui::Window::new(format!("🎙️ {}", tr!("recorder.window.name")))
+            .id(egui::Id::new("recorder"))
             .open(&mut open)
             .resizable(true)
             .default_size([500.0, 400.0])
