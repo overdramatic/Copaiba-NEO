@@ -22,13 +22,11 @@ jobs:
       run: |
         mkdir -p AppDir/usr/bin
         cp target/release/copaiba_neo AppDir/usr/bin/
-        cp icon.png AppDir/
         cat > AppDir/copaiba_neo.desktop <<EOF
         [Desktop Entry]
         Type=Application
         Name=Copaiba NEO
         Exec=copaiba_neo
-        Icon=icon
         Categories=AudioVideo;Audio;
         EOF
     - name: Generate AppImage
@@ -54,10 +52,6 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Install ImageMagick (for icon conversion)
-      run: choco install imagemagick
-    - name: Convert icon to ICO
-      run: magick icon.png -define icon:auto-resize=256,128,64,48,32,16 icon.ico
     - name: Build
       run: cargo build --release
     - name: Upload Windows Binary
