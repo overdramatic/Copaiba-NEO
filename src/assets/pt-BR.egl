@@ -86,6 +86,8 @@ modal.preset.grid.preutter = Preutter
 modal.preset.grid.overlap = Overlap
 # Modal - Settings
 modal.settings.window.name = Configurações
+modal.settings.general.heading = Geral
+modal.settings.general.label.language = Idioma:
 modal.settings.waveform.heading = Visualização do Waveform
 modal.settings.waveform.ckb.show_minimap = Mostrar Waveform
 modal.settings.waveform.ckb.persistent_zoom = Manter zoom ao trocar alias

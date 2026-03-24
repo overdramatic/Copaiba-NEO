@@ -99,6 +99,22 @@ impl CopaibaApp {
             .default_size([400.0, 600.0])
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.heading(format!("🌍 {}", tr!("modal.settings.general.heading")));
+                    ui.horizontal(|ui| {
+                        ui.label(tr!("modal.settings.general.label.language"));
+                        egui::ComboBox::from_id_salt("language_selector")
+                            .selected_text(&self.config.language)
+                            .show_ui(ui, |ui| {
+                                if ui.selectable_value(&mut self.config.language, "en-US".to_string(), "en-US").clicked() {
+                                    egui_i18n::set_language("en-US");
+                                }
+                                if ui.selectable_value(&mut self.config.language, "pt-BR".to_string(), "pt-BR").clicked() {
+                                    egui_i18n::set_language("pt-BR");
+                                }
+                            });
+                    });
+                    ui.separator();
+
                     ui.heading(format!("🎬 {}", tr!("modal.settings.waveform.heading")));
                     ui.checkbox(&mut self.visual.show_minimap, tr!("modal.settings.waveform.ckb.show_minimap"));
                     ui.checkbox(&mut self.visual.persistent_zoom, tr!("modal.settings.waveform.ckb.persistent_zoom"));
@@ -194,10 +210,10 @@ impl CopaibaApp {
                     }
 
                     ui.separator();
-                    if ui.button(tr!("btn.close")).clicked() { self.ui.show_settings = false; }
+                    if ui.button(tr!("btn.close")).clicked() { self.save_prefs(); self.ui.show_settings = false; }
                 });
             });
-        if !open { self.ui.show_settings = false; }
+        if !open { self.save_prefs(); self.ui.show_settings = false; }
     }
 
     fn modal_help(&mut self, ctx: &egui::Context) {

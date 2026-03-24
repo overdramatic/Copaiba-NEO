@@ -234,6 +234,7 @@ impl Default for UiState {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AppConfig {
+    pub language: String,
     pub shortcut_profile: ShortcutProfile,
     pub custom_shorts: CustomShortcuts,
     pub play_on_select: bool,
@@ -248,6 +249,7 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
+            language: "pt-BR".to_string(),
             shortcut_profile: ShortcutProfile::Copaiba,
             custom_shorts: CustomShortcuts {
                 play: "P".to_string(),
@@ -359,4 +361,9 @@ impl Default for CopaibaApp {
 impl CopaibaApp {
     pub fn cur(&self) -> &TabState { &self.tabs[self.current_tab] }
     pub fn cur_mut(&mut self) -> &mut TabState { &mut self.tabs[self.current_tab] }
+
+    pub fn set_language(&mut self, lang: &str) {
+        egui_i18n::set_language(lang);
+        self.config.language = lang.to_string();
+    }
 }
