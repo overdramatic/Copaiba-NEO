@@ -37,7 +37,12 @@ jobs:
             TITLE="📦 Novo push em $REPO"
             COLOR=3447003
             
-            FILES=$(jq -r '(.commits[]?, .head_commit) | select(. != null) | (.modified[]?, .added[]?, .removed[]?)' "$GITHUB_EVENT_PATH" | sort -u | grep -v '^$' || true)
+            # Extração DUPLA e blindada de arquivos (resolve falhas do jq)
+            FILES_COMMITS=$(jq -r '.commits[]? | .modified[]?, .added[]?, .removed[]?' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
+            FILES_HEAD=$(jq -r '.head_commit? | .modified[]?, .added[]?, .removed[]?' "$GITHUB_EVENT_PATH" 2>/dev/null || true)
+            
+            # Junta as listas, limpa falhas (null) e remove duplicatas
+            FILES=$(printf "%s\n%s" "$FILES_COMMITS" "$FILES_HEAD" | sed '/^null$/d' | sed '/^$/d' | sort -u || true)
             
             if [ -z "$FILES" ]; then
               FILE_TEXT="*Nenhum arquivo detalhado no payload do GitHub.*"
