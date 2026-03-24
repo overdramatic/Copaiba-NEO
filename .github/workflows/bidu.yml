@@ -28,8 +28,7 @@ jobs:
           
           # Formato Padrão (Coringa)
           TITLE="🔔 Nova modificação em $REPO"
-          DESC="Ação realizada por **$ACTOR**.
-Evento detectado: \`$EVENT_NAME\`."
+          DESC="Ação realizada por **$ACTOR**."$'\n'"Evento detectado: \`$EVENT_NAME\`."
           COLOR=8421504
           
           # 1. Commits (Push e Merges)
@@ -38,7 +37,6 @@ Evento detectado: \`$EVENT_NAME\`."
             TITLE="📦 Novo push em $REPO"
             COLOR=3447003
             
-            # Agora ele busca nos commits E no head_commit (resolve o problema dos merges)
             FILES=$(jq -r '(.commits[]?, .head_commit) | select(. != null) | (.modified[]?, .added[]?, .removed[]?)' "$GITHUB_EVENT_PATH" | sort -u | grep -v '^$' || true)
             
             if [ -z "$FILES" ]; then
@@ -48,19 +46,11 @@ Evento detectado: \`$EVENT_NAME\`."
               FILE_TEXT=$(echo "$FILES" | head -n 5 | awk '{print "- `"$0"`"}')
               if [ "$TOTAL" -gt 5 ]; then
                 REMAINING=$((TOTAL - 5))
-                # Quebra de linha real aqui
-                FILE_TEXT="$FILE_TEXT
-*...e mais $REMAINING arquivo(s)*"
+                FILE_TEXT=$(printf "%s\n*...e mais %d arquivo(s)*" "$FILE_TEXT" "$REMAINING")
               fi
             fi
             
-            # Quebras de linha reais para corrigir a formatação do Discord
-            DESC="Autoria de **$ACTOR**.
-
-**Arquivos alterados:**
-$FILE_TEXT
-
-[Comparar alterações]($URL)"
+            DESC=$(printf "Autoria de **%s**.\n\n**Arquivos alterados:**\n%s\n\n[Comparar alterações](%s)" "$ACTOR" "$FILE_TEXT" "$URL")
             
           # 2. Pull Requests
           elif [ "$EVENT_NAME" == "pull_request" ]; then
@@ -68,10 +58,7 @@ $FILE_TEXT
             PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
             URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
             TITLE="🔀 Pull Request $ACTION em $REPO"
-            DESC="Autoria de **$ACTOR**.
-**Título:** $PR_TITLE
-
-[Ver Pull Request]($URL)"
+            DESC=$(printf "Autoria de **%s**.\n**Título:** %s\n\n[Ver Pull Request](%s)" "$ACTOR" "$PR_TITLE" "$URL")
             COLOR=5763719
             
           # 3. Issues
@@ -80,10 +67,7 @@ $FILE_TEXT
             ISSUE_TITLE=$(jq -r '.issue.title' "$GITHUB_EVENT_PATH")
             URL=$(jq -r '.issue.html_url' "$GITHUB_EVENT_PATH")
             TITLE="🚨 Issue $ACTION em $REPO"
-            DESC="Autoria de **$ACTOR**.
-**Título:** $ISSUE_TITLE
-
-[Ver Issue]($URL)"
+            DESC=$(printf "Autoria de **%s**.\n**Título:** %s\n\n[Ver Issue](%s)" "$ACTOR" "$ISSUE_TITLE" "$URL")
             COLOR=16753920
             
           # 4. Comentários
@@ -91,9 +75,7 @@ $FILE_TEXT
             ACTION=$(jq -r '.action' "$GITHUB_EVENT_PATH")
             URL=$(jq -r '.comment.html_url' "$GITHUB_EVENT_PATH")
             TITLE="💬 Comentário $ACTION em $REPO"
-            DESC="**$ACTOR** modificou um comentário em uma Issue ou Pull Request.
-
-[Ir para o comentário]($URL)"
+            DESC=$(printf "**%s** modificou um comentário em uma Issue ou Pull Request.\n\n[Ir para o comentário](%s)" "$ACTOR" "$URL")
             COLOR=16776960
             
           # 5. Releases
@@ -102,9 +84,7 @@ $FILE_TEXT
             RELEASE_NAME=$(jq -r '.release.name' "$GITHUB_EVENT_PATH")
             URL=$(jq -r '.release.html_url' "$GITHUB_EVENT_PATH")
             TITLE="🚀 Release $ACTION em $REPO"
-            DESC="**$ACTOR** mexeu na versão: **$RELEASE_NAME**.
-
-[Ver Release]($URL)"
+            DESC=$(printf "**%s** mexeu na versão: **%s**.\n\n[Ver Release](%s)" "$ACTOR" "$RELEASE_NAME" "$URL")
             COLOR=15105570
             
           # 6. Criação de Branches/Tags
@@ -112,7 +92,7 @@ $FILE_TEXT
             REF_TYPE=$(jq -r '.ref_type' "$GITHUB_EVENT_PATH")
             REF=$(jq -r '.ref' "$GITHUB_EVENT_PATH")
             TITLE="🌱 Nova $REF_TYPE criada"
-            DESC="**$ACTOR** criou a $REF_TYPE \`$REF\` no repositório."
+            DESC=$(printf "**%s** criou a %s \`%s\` no repositório." "$ACTOR" "$REF_TYPE" "$REF")
             COLOR=5763719
             
           # 7. Exclusão de Branches/Tags
@@ -120,7 +100,7 @@ $FILE_TEXT
             REF_TYPE=$(jq -r '.ref_type' "$GITHUB_EVENT_PATH")
             REF=$(jq -r '.ref' "$GITHUB_EVENT_PATH")
             TITLE="🗑️ $REF_TYPE deletada"
-            DESC="**$ACTOR** deletou a $REF_TYPE \`$REF\` do repositório."
+            DESC=$(printf "**%s** deletou a %s \`%s\` do repositório." "$ACTOR" "$REF_TYPE" "$REF")
             COLOR=15548997
           fi
           
